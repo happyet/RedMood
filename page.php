@@ -1,13 +1,14 @@
 <?php get_header(); ?>
 	<div class="main">
-		<div class="container clearfix">
-			<main class="content" role="main">
+		<div class="container">
+			<div class="row">
+			<main class="content col-lg-8" role="main">
 				<?php if (have_posts()) : ?>
 					<div class="breadcrumb">
 						<span class="genericon genericon-location"></span> <a href="<?php echo esc_url( home_url( '/' ) ); ?>" rel="home">首页</a><em>/</em>页面<em>/</em><?php the_title(); ?>
 					</div>
 					<?php while (have_posts()) : the_post(); ?>
-						<article class="hentry clearfix">
+						<article class="hentry">
 							<header class="hentry-header">
 								<?php the_title( '<h1 class="entry-title">', '</h1>' ); ?>
 								<div class="post-meta entry-meta">
@@ -35,13 +36,12 @@
 								?>
 							</div>
 						</article>
-						<?php
-							if( comments_open() || get_comments_number() ) comments_template();
-						?>
+						<?php if( comments_open() || get_comments_number() ) comments_template(); ?>
 					<?php endwhile; ?>
 				<?php endif; ?>
 			</main>
 			<?php get_sidebar(); ?>
+		</div>
 		</div>
 	</div>
 <?php get_footer(); ?>

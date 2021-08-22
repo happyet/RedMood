@@ -1,13 +1,14 @@
 <?php get_header(); ?>
 	<div class="main">
-		<div class="container clearfix">
-			<main class="content" role="main">
+		<div class="container">
+			<div class="row">
+			<main class="content col-lg-8" role="main">
 				<?php if (have_posts()) : ?>
 					<div class="breadcrumb">
 						<span class="genericon genericon-location"></span> <a href="<?php echo esc_url( home_url( '/' ) ); ?>" rel="home">首页</a><em>/</em><?php the_category(', ') ?><em>/</em><?php the_title(); ?>
 					</div>
 					<?php while (have_posts()) : the_post(); ?>
-						<article class="hentry clearfix">
+						<article class="hentry">
 							<header class="hentry-header">
 								<?php the_title( '<h1 class="entry-title">', '</h1>' ); ?>
 								<div class="post-meta entry-meta">
@@ -36,8 +37,6 @@
 								?>
 							</div>
 							<footer class="entry-footer">
-								<div class="dianp alignright"><span class="genericon genericon-digg"></span> +10086</div>
-								<?php the_tags( '<p><span class="genericon genericon-tag"></span> ', ', ', '</p>'); ?>
 								<div class="author-info">
 									<div class="author-avatar">
 										<?php
@@ -53,7 +52,16 @@
 											<?php the_author_meta( 'description' ); ?>											
 										</p>
 									</div>
+									<?php 
+										$shang = get_the_author_meta( 'shang' );
+										if($shang){
+											echo '<div class="shang"><span>赏</span>';
+											echo '<div class="s-qrcode"><img src="'.$shang.'" alt="求赏"></div></div>';
+										}
+									?>
 								</div>
+								<div class="dianp alignright"><span class="genericon genericon-digg"></span> +10086</div>
+								<?php the_tags( '<p><span class="genericon genericon-tag"></span> ', ', ', '</p>'); ?>
 							</footer>
 						</article>
 						<?php
@@ -71,6 +79,7 @@
 				<?php endif; ?>
 			</main>
 			<?php get_sidebar(); ?>
+		</div>
 		</div>
 	</div>
 <?php get_footer(); ?>

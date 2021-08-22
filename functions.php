@@ -4,7 +4,7 @@ function lmsim_setup() {
 	add_theme_support( 'title-tag' );
 	add_theme_support( 'automatic-feed-links' );
 	add_theme_support( 'custom-logo', array(
-		'height'      => 75,
+		'height'      => 61,
 		'width'       => 240,
 		'flex-height' => true,
 	) );
@@ -32,7 +32,7 @@ function lmsim_setup() {
 		'audio',
 		'chat',
 	) );
-	add_editor_style( 'css/editor-style.css' );
+	add_editor_style( 'static/css/editor-style.css' );
 	add_theme_support( 'customize-selective-refresh-widgets' );
 }
 add_action( 'after_setup_theme', 'lmsim_setup' );
@@ -43,9 +43,9 @@ function lmsim_widgets_init() {
 		'id'            => 'sidebar-1',
 		'description'   => __( '右侧边栏小工具，使用日历请填写标题，否则会出错。', 'lmsim' ),
 		'before_widget' => '<section id="%1$s" class="widget %2$s">',
-		'after_widget'  => '</div></section>',
+		'after_widget'  => '</section>',
 		'before_title'  => '<h2 class="widget-title"><span>',
-		'after_title'   => '</span></h2><div class="widget-box">',
+		'after_title'   => '</span></h2>',
 	) );
 	register_sidebar( array(
 		'name'          => __( 'Footer Top 1', 'lmsim' ),
@@ -78,22 +78,35 @@ function lmsim_widgets_init() {
 add_action( 'widgets_init', 'lmsim_widgets_init' );
 
 function lmsim_scripts() {
-	wp_enqueue_style( 'genericons', get_template_directory_uri() . '/genericons/genericons.css', array(), '3.4.1' );
-	wp_enqueue_style( 'lmsim-style', get_stylesheet_uri() );
+	wp_enqueue_style( 'genericons', get_template_directory_uri() . '/static/genericons/genericons.css', array(), '3.4.1' );
+	wp_enqueue_style( 'bootstrap', get_template_directory_uri() . '/static/css/bootstrap-grid.min.css', array(), '5.0.2' );
+	wp_enqueue_style( 'lmsim', get_stylesheet_uri() );
 	if ( is_singular() && comments_open() && get_option( 'thread_comments' ) ) {
 		wp_enqueue_script( 'comment-reply' );
 	}
 	if ( is_singular() && wp_attachment_is_image() ) {
-		wp_enqueue_script( 'lmsim-keyboard-image-navigation', get_template_directory_uri() . '/js/keyboard-image-navigation.js', array( 'jquery' ), '20160816' );
+		wp_enqueue_script( 'lmsim-keyboard-image-navigation', get_template_directory_uri() . '/static/js/keyboard-image-navigation.js', array( 'jquery' ), '20160816' );
 	}
-	wp_enqueue_script( 'lmsim-script', get_template_directory_uri() . '/js/functions.js', array( 'jquery' ), '20160816', true );
-	wp_localize_script( 'lmsim-script', 'screenReaderText', array(
+	wp_enqueue_script( 'bootstrap', get_template_directory_uri() . '/static/js/bootstrap.min.js', array(), '5.0.2', true );
+	wp_enqueue_script( 'lmsim', get_template_directory_uri() . '/static/js/functions.js', array( 'jquery' ), '2.0', true );
+	wp_localize_script( 'lmsim', 'screenReaderText', array(
 		'expand'   => __( 'expand child menu', 'lmsim' ),
 		'collapse' => __( 'collapse child menu', 'lmsim' ),
 	) );
 }
 add_action( 'wp_enqueue_scripts', 'lmsim_scripts' );
-
+function get_cravatar_url( $url ) {
+    $sources = array(
+        'www.gravatar.com',
+        '0.gravatar.com',
+        '1.gravatar.com',
+        '2.gravatar.com',
+        'secure.gravatar.com',
+        'cn.gravatar.com'
+    );
+    return str_replace( $sources, 'cravatar.cn', $url );
+}
+add_filter( 'get_avatar_url', 'get_cravatar_url', 1 );
 function lmsim_record_views(){
   if (is_singular()) {
     global $post, $user_ID;
@@ -170,7 +183,8 @@ function add_remove_contactmethods($contactmethods){
   $contactmethods['github'] = 'Github';
   $contactmethods['facebook'] = 'Facebook';
   $contactmethods['instagram']  = 'Instagram';
-  $contactmethods['notice']  = '公告';
+  $contactmethods['shang']  = '求赏二维码';
+  if( current_user_can ('manage_options') ) $contactmethods['notice']  = '一句话公告';
   // Remove Contact Methods
   unset($contactmethods['aim']);
   unset($contactmethods['yim']);
@@ -192,7 +206,7 @@ function lmsim_thumbnail_src() {
   	$imgsrc = $matches[1][0];
   }else{
   	$random = mt_rand(1, 10);
-  	$imgsrc = get_template_directory_uri() . '/images/rand/' . $random . '.jpg';
+  	$imgsrc = get_template_directory_uri() . '/static/images/rand/' . $random . '.jpg';
   }
   return $imgsrc;
 }
@@ -299,3 +313,210 @@ function lmsim_custom_archive_title() {
   return $title;
 }
 add_filter('get_the_archive_title', 'lmsim_custom_archive_title');
+/*
+默认侧栏最新评论排除博主
+查看wp-includes/comment.php中WP_Comment_Query::query部分
+根据传入参数完善查询条件
+*/
+add_filter( 'comments_clauses', 'wpdit_comments_clauses', 2, 10);
+function wpdit_comments_clauses( $clauses, $comments ) {
+    global $wpdb;
+    if ( isset( $comments->query_vars['not_in__user'] ) && ( $user_id = $comments->query_vars['not_in__user'] ) ) {
+         
+        if ( is_array( $user_id ) ) {
+            $clauses['where'] .= ' AND user_id NOT IN (' . implode( ',', array_map( 'absint', $user_id ) ) . ')';
+        } elseif ( '' !== $user_id ) {
+            $clauses['where'] .= $wpdb->prepare( ' AND user_id <> %d', $user_id );
+        }
+    }
+    //var_dump($clauses);
+    return $clauses;
+}
+/*
+默认侧栏最新评论排除博主
+详细查看wp-includes/default-widgets.php中 WP_Widget_Recent_Comments 部分
+增加参数not_in__user
+*/
+add_filter( 'widget_comments_args', 'wpdit_widget_comments_args' );
+function wpdit_widget_comments_args( $args ){
+    $args['not_in__user'] = array(1); //这里放你的ID；
+    return $args;
+}
+/**new comments widget */
+class lms_recentcomments extends WP_Widget {
+	function __construct() {
+		parent::__construct(
+			'lms-recentcomments', // ID.
+			esc_html__( 'LMS-最新评论' ), // Name.
+			array(
+				'classname' => 'widget_recentcomments',
+				'description' => esc_html__( '显示带头像最新评论。' ),
+				'customize_selective_refresh' => true,
+			)
+		);
+	}
+	function widget( $args, $instance ) {
+		ob_start();
+		$title = apply_filters( 'widget_title', $instance['title'] );
+		$exclude_admin = $instance['exclude_admin'];
+		$limit_number = $instance['limit_number'];
+		echo $args['before_widget'];
+		echo $args['before_title'] . $title . $args['after_title'];
+		$recent_comments_cache = '';
+
+			$comments_args = array(
+				'type' 				=> 'comment',
+				'status'			=> 'approve',
+				'post_status'		=> 'publish',
+				'author__not_in' 	=> $exclude_admin,
+				'number'  			=> $limit_number
+			);
+			$recent_comments = get_comments($comments_args);
+			if($recent_comments){
+				$recent_comments_cache = '<ul>';
+					foreach($recent_comments as $rc_comment):
+						$recent_comments_cache .= '<li><div class="rc-avatar">'.get_avatar($rc_comment->comment_author_email, 45).'</div>
+							<div class="rc-comment">	
+								<div class="rc-comment-meta">
+									<span class="author">'.$rc_comment->comment_author.'</span>
+									<span class="date">'.$rc_comment->comment_date.'</span>
+								</div>
+								<p><a href="'.get_comment_link($rc_comment->comment_ID).'">'. wp_trim_words($rc_comment->comment_content,28).'...</a></p>
+							</div>
+						</li>';
+					endforeach; 
+				$recent_comments_cache .= '</ul>';
+			}
+		
+		echo $recent_comments_cache;
+		echo $args['after_widget'];
+		// End Output Buffering.
+		ob_end_flush();
+	}
+	function update( $new_instance, $old_instance ) {
+		$instance = $old_instance;
+		$instance['title'] = strip_tags( $new_instance['title'] );
+		$instance['exclude_admin'] = (int) $new_instance['exclude_admin'];
+		$instance['limit_number'] = (int) $new_instance['limit_number'];
+		return $instance;
+	}
+	function form( $instance ) {
+		$title = ! empty( $instance['title'] ) ? $instance['title'] : '最新评论';
+		$exclude_admin = ! empty( $instance['exclude_admin'] ) ? $instance['exclude_admin'] : '1';
+		$limit_number = ! empty( $instance['limit_number'] ) ? $instance['limit_number'] : '5';
+		?>
+		<p>
+ 			<label for="<?php echo $this->get_field_id( 'title'); ?>"><?php esc_html_e( '标题:' ); ?></label>
+ 			<input class="widefat" type="text" id="<?php echo $this->get_field_id( 'title' ); ?>" name="<?php echo $this->get_field_name( 'title' ); ?>" value="<?php echo esc_attr( $title ); ?>" />
+		</p>
+
+		<p>
+			<label for="<?php echo $this->get_field_id( 'exclude_admin' ); ?>"><?php esc_html_e( '排除作者ID:' ); ?></label>
+			<input class="widefat" type="text" id="<?php echo $this->get_field_id( 'exclude_admin' ); ?>" name="<?php echo $this->get_field_name( 'exclude_admin' ); ?>" value="<?php echo esc_attr( $exclude_admin ); ?>" />
+		</p>
+
+		<p>
+			<label for="<?php echo $this->get_field_id( 'limit_number' ); ?>"><?php esc_html_e( '显示评论数量:' ); ?></label>
+			<input class="widefat" type="text" id="<?php echo $this->get_field_id( 'limit_number' ); ?>" name="<?php echo $this->get_field_name( 'limit_number' ); ?>" value="<?php echo esc_attr( $limit_number ); ?>" />
+		</p>
+
+		<?php
+	}
+}
+function lms_register_recentcomments_widget() {
+	register_widget( 'lms_recentcomments' );
+}
+add_action( 'widgets_init', 'lms_register_recentcomments_widget' );
+/**new POSTs widget */
+class lms_recentposts extends WP_Widget {
+	function __construct() {
+		parent::__construct(
+			'lms-recentposts', // ID.
+			esc_html__( 'LMS-最新文章' ), // Name.
+			array(
+				'classname' => 'widget_recentposts',
+				'description' => esc_html__( '自定义最新文章。' ),
+				'customize_selective_refresh' => true,
+			)
+		);
+	}
+	function widget( $args, $instance ) {
+		ob_start();
+		$title = apply_filters( 'widget_title', $instance['title'] );
+		$exclude_cat = $instance['exclude_cat'];
+		$limit_number = $instance['limit_number'];
+		echo $args['before_widget'];
+		echo $args['before_title'] . $title . $args['after_title'];
+		$post_args = array(
+			'posts_per_page'  	=> absint($limit_number),
+			'ignore_sticky_posts' => true,
+			'no_found_rows'		=> true
+		);
+		if($exclude_cat) $post_args['category__not_in'] = $exclude_cat;
+		$recent_posts = get_posts($post_args);
+		if($recent_posts){
+			echo '<ul>';
+				global $post;
+				foreach($recent_posts as $post): setup_postdata( $post ); ?>
+					<li>
+						<div class="rc-post-thumb"><a href="<?php the_permalink(); ?>" style="background-image:url(<?php echo lmsim_thumbnail_src(); ?>);"></a></div>
+						<div class="rc-post-head">
+							<h4><a class="text-link stretched-link" href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h4>
+							<div class="rc-post-meta">
+								<span><?php the_category(' '); ?></span>
+								<span><?php the_time('Y-m-d'); ?></span>
+								<span><i class="genericon genericon-comment"></i><?php echo get_comments_number(); ?></span>
+							</div>
+						</div>
+					</li>
+				<?php endforeach; wp_reset_postdata();
+			echo '</ul>';
+		}
+		echo $args['after_widget'];
+		// End Output Buffering.
+		ob_end_flush();
+	}
+	function update( $new_instance, $old_instance ) {
+		$instance = $old_instance;
+		$instance['title'] = strip_tags( $new_instance['title'] );
+		$instance['exclude_cat'] = (int) $new_instance['exclude_cat'];
+		$instance['limit_number'] = (int) $new_instance['limit_number'];
+		return $instance;
+	}
+	function form( $instance ) {
+		$title = ! empty( $instance['title'] ) ? $instance['title'] : '最新文章';
+		$exclude_cat = ! empty( $instance['exclude_cat'] ) ? $instance['exclude_cat'] : '';
+		$limit_number = ! empty( $instance['limit_number'] ) ? $instance['limit_number'] : '5';
+		?>
+		<p>
+ 			<label for="<?php echo $this->get_field_id( 'title'); ?>"><?php esc_html_e( '标题:' ); ?></label>
+ 			<input class="widefat" type="text" id="<?php echo $this->get_field_id( 'title' ); ?>" name="<?php echo $this->get_field_name( 'title' ); ?>" value="<?php echo esc_attr( $title ); ?>" />
+		</p>
+
+		<p>
+			<label for="<?php echo $this->get_field_id( 'exclude_cat' ); ?>"><?php esc_html_e( '排除分类ID:' ); ?></label>
+			<?php
+				$args = array(
+					'show_option_all'    => esc_html__( '所有分类' ),
+					'show_count' 		 => true,
+					'hide_empty'		 => false,
+					'selected'           => $exclude_cat,
+					'name'               => $this->get_field_name( 'exclude_cat' ),
+					'id'                 => $this->get_field_id( 'exclude_cat' ),
+				);
+				wp_dropdown_categories( $args );
+			?>
+		</p>
+
+		<p>
+			<label for="<?php echo $this->get_field_id( 'limit_number' ); ?>"><?php esc_html_e( '显示文章数量:' ); ?></label>
+			<input class="widefat" type="text" id="<?php echo $this->get_field_id( 'limit_number' ); ?>" name="<?php echo $this->get_field_name( 'limit_number' ); ?>" value="<?php echo esc_attr( $limit_number ); ?>" />
+		</p>
+
+		<?php
+	}
+}
+function lms_register_recentposts_widget() {
+	register_widget( 'lms_recentposts' );
+}
+add_action( 'widgets_init', 'lms_register_recentposts_widget' );
